@@ -15,18 +15,18 @@
 #include "stdio.h"
 
 	/* Puerto y pines a los que se conecta el display */
-	#define D4_Pin 		OUT_D4_Pin
-	#define D5_Pin		OUT_D5_Pin
-	#define D6_Pin		OUT_D6_Pin
-	#define D7_Pin		OUT_D7_Pin
-	#define RS_Pin		OUT_RS_Pin
-	#define EN_Pin		OUT_EN_Pin
-	#define D4_Port		OUT_D4_GPIO_Port
-	#define D5_Port		OUT_D5_GPIO_Port
-	#define D6_Port		OUT_D6_GPIO_Port
-	#define D7_Port		OUT_D7_GPIO_Port
-	#define RS_Port		OUT_RS_GPIO_Port
-	#define EN_Port		OUT_EN_GPIO_Port
+	#define D4_Pin 		LCD_D4_Pin
+	#define D5_Pin		LCD_D5_Pin
+	#define D6_Pin		LCD_D6_Pin
+	#define D7_Pin		LCD_D7_Pin
+	#define RS_Pin		LCD_RS_Pin
+	#define EN_Pin		LCD_EN_Pin
+	#define D4_Port		LCD_D4_GPIO_Port
+	#define D5_Port		LCD_D5_GPIO_Port
+	#define D6_Port		LCD_D6_GPIO_Port
+	#define D7_Port		LCD_D7_GPIO_Port
+	#define RS_Port		LCD_RS_GPIO_Port
+	#define EN_Port		LCD_EN_GPIO_Port
 
 
 	/* C�digos hexadecimales de las instrucciones utilizadas */

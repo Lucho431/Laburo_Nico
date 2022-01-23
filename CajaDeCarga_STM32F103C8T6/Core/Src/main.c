@@ -22,6 +22,7 @@
 #include "adc.h"
 #include "dma.h"
 #include "tim.h"
+#include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -42,8 +43,8 @@
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 
-#define PROTEC_V ( (IN_PV1_GPIO_Port->IDR & IN_PV1_Pin) | (IN_PV2_GPIO_Port->IDR & IN_PV2_Pin) | (IN_PV3_GPIO_Port->IDR & IN_PV3_Pin) )
-#define PROTEC_A ( (IN_PA1_GPIO_Port->IDR & IN_PA1_Pin) | (IN_PA2_GPIO_Port->IDR & IN_PA2_Pin) | (IN_PA3_GPIO_Port->IDR & IN_PA3_Pin) )
+#define PROTEC_V ( (P_Temp_Vo_GPIO_Port->IDR & P_Temp_Vo_Pin) | (P_OL_Vo_GPIO_Port->IDR & P_OL_Vo_Pin) )
+#define PROTEC_A ( (P_Temp_Io_GPIO_Port->IDR & P_Temp_Io_Pin) | (P_OL_Io_GPIO_Port->IDR & P_OL_Io_Pin) )
 
 /* USER CODE END PM */
 
@@ -121,6 +122,7 @@ int main(void)
   MX_TIM3_Init();
   MX_TIM4_Init();
   MX_TIM2_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 
   HAL_TIM_Base_Start(&htim4);
@@ -203,15 +205,15 @@ int main(void)
 	  switch (flag_protecV){
 		  case 0:
 			  if (PROTEC_V != 0){
-				  HAL_GPIO_WritePin(OUT_ENAMP1_GPIO_Port, OUT_ENAMP1_Pin, SIGNAL_OFF);
+				  HAL_GPIO_WritePin(HAB_Vo_GPIO_Port, HAB_Vo_Pin, SIGNAL_OFF);
 				  flag_protecV = 1;
 			  }
 		  break;
 		  case 1:
 			  if (!PROTEC_V) break;
 
-			  if (HAL_GPIO_ReadPin(IN_P1CERO_GPIO_Port, IN_P1CERO_Pin) == (GPIO_PinState)SIGNAL_ON){
-				  HAL_GPIO_WritePin(OUT_ENAMP1_GPIO_Port, OUT_ENAMP1_Pin, SIGNAL_ON);
+			  if (HAL_GPIO_ReadPin(Rep_Pote_Vo_GPIO_Port, Rep_Pote_Vo_Pin) == (GPIO_PinState)SIGNAL_ON){
+				  HAL_GPIO_WritePin(HAB_Vo_GPIO_Port, HAB_Vo_Pin, SIGNAL_ON);
 				  flag_protecV = 0;
 			  }
 		  default:
@@ -221,15 +223,15 @@ int main(void)
 	  switch (flag_protecA){
 		  case 0:
 			  if (PROTEC_A != 0){
-				  HAL_GPIO_WritePin(OUT_ENAMP2_GPIO_Port, OUT_ENAMP2_Pin, SIGNAL_OFF);
+				  HAL_GPIO_WritePin(HAB_Io_GPIO_Port, HAB_Io_Pin, SIGNAL_OFF);
 				  flag_protecA = 1;
 			  }
 		  break;
 		  case 1:
 			  if (!PROTEC_A) break;
 
-			  if (HAL_GPIO_ReadPin(IN_P2CERO_GPIO_Port, IN_P2CERO_Pin) == (GPIO_PinState)SIGNAL_ON){
-				  HAL_GPIO_WritePin(OUT_ENAMP2_GPIO_Port, OUT_ENAMP2_Pin, SIGNAL_ON);
+			  if (HAL_GPIO_ReadPin(Rep_Pote_Io_GPIO_Port, Rep_Pote_Io_Pin) == (GPIO_PinState)SIGNAL_ON){
+				  HAL_GPIO_WritePin(HAB_Io_GPIO_Port, HAB_Io_Pin, SIGNAL_ON);
 				  flag_protecA = 0;
 			  }
 		  default:
