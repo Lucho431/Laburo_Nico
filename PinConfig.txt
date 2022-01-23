@@ -1,0 +1,79 @@
+* Medicion de corriente
+    Rangos de corriente: (uno activo, cero inactivo) (logica positiva)
+    Rango_Io_A -> Input, Pull-Down -> Menor peso
+    Rango_Io_B -> Input, Pull-Down 
+    Rango_Io_C -> Input, Pull-Down -> Mayor peso 
+
+    X0 = invalido -> 000
+    X1 =0,5A -> 001
+    X2 =  1A -> 010
+    X3 =  2A -> 011
+    X4 =  5A -> 100
+    X5 = 10A -> 101
+    X6 = 20A -> 110
+    X7 = 50A -> 111
+
+    Cada rango al 100% da en el ADC 1,23Vp (con el offset en 1,65V) se ajusta con un pote igual
+    Puede medir como maximo 134%, al 130% tiene que cortar la salida del amp por proteccion
+
+    Hay que calcular una relacion para cada rango, que acomode el valor a "A" y "mA"
+    Esa relacion se tiene que poder modificar para hacer correcciones o ajustes.
+
+* Medicion de Tensión:
+    Tiene un solo rango (en medición) asi que es mas facil que en corriente.
+
+    Los 3,3Vpp a la entrada del ADC (con offset de 1,65V) representan 430Vac y a esa
+    tensión tiene que cortarse la habilitacion del amplificador por proteccion.
+
+    Esta relacion tambien tiene que poder ajustarse.
+
+* Medicion de Phi: (version Nico)
+    La referencia es la señal de Vo. Con el flanco comienza la medicion
+    Si cuando ocurre flanco en Vo, Io=1 => signo + ; Io=0 => signo -
+    Se cuentan impulsos mientras ambos son positivos.
+    Se miden 6 ciclos consecutivos, la cantidad de pulsos se multiplican por
+    los grados que equivale cada pulso. El resultado se divide por 5 (cantidad de ciclos)
+    La proxima medicion se hace cuando se vuelva a refrescar pantalla.
+
+* Medicion de Phi: (version Lucho)
+
+    La referencia es la señal de Vo. Con el flanco comienza la medicion
+    el timer cuenta constantemente a 36kHz
+    Cuando ocurre un flanco ascendente en Vo,  pone en cero el contador
+    Cuando ocurre un flanco descendente en Io, Captura la cuenta
+    Promedio 5 muestras
+    Si el águlo es mayor a 180°, Phi = 360 - ángulo medido y le asigno un signo negativo
+
+--------------------------------
+
+
+* Protecciones:
+    Las de tensión solo afectan al amp de tensión, lo mismo con el de corriente. (son individuales)
+    
+    P_Temp_Vo (Proteccion de sobretemperatura) -> Input Pull-Up -> 1=activa protección; 0=No activa protección
+    P_OL_Vo   (Proteccion de sobre carga)      -> Input Pull-Up -> 1=activa protección; 0=No activa protección
+
+    P_Temp_Io (Proteccion de sobretemperatura) -> Input Pull-Up -> 1=activa ; 0=No activa 
+    P_OL_Io   (Proteccion de sobre carga)      -> Input Pull-Up -> 1=activa ; 0=No activa 
+    
+* Reposición del potenciometro:
+    Rep_Pote_Vo ->Input Pull-Up -> 1=No repuso ; 0=Repuso (pote a cero)
+    
+* Habilitaciones:
+    Se activa la habilitacion de cada amplificador cuando todas las protecciones estan no activas
+    y se pone el potenciometro a cero durante 1 segundo (evaluar).
+    Luego cuando se pulsa la habilitacion (lectura por nivel), se activa el amplificador y se enciende el led testigo
+    
+    Hab_Io -> Output -> 1=No Habilita ; 0=Habilita
+    Hab_Vo -> Output -> 1=No Habilita ; 0=Habilita
+    
+* Pulsador de habilitación:
+    Pul_Hab_Vo -> Input Pull_Up -> 1=No activo ; 0=Activo
+    Pul_Hab_Io -> Input Pull_Up -> 1=No activo ; 0=Activo
+    
+* Leds
+    1=Encendido; 0= Apagado
+    
+    
+
+
