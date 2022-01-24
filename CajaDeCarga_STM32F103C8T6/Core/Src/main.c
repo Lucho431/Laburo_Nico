@@ -60,11 +60,10 @@ uint32_t RMS_samplesA = 0;
 
 uint8_t status_adc = 0;
 
-uint8_t status_fase = 0;
 uint8_t flag_faseNegativa = 0;
 uint32_t acum_fase = 0;
 uint8_t cuenta_fase = 0;
-int32_t valor_fase = 0;
+float valor_fase = 0;
 
 //uint32_t ic1, ic2, ic3, ic4;
 uint32_t ventana_inicio = 0;
@@ -127,9 +126,7 @@ int main(void)
 
   HAL_TIM_Base_Start(&htim4);
   HAL_TIM_IC_Start_IT(&htim4, TIM_CHANNEL_1);
-  HAL_TIM_IC_Start_IT(&htim4, TIM_CHANNEL_2);
   HAL_TIM_IC_Start_IT(&htim4, TIM_CHANNEL_3);
-  HAL_TIM_IC_Start_IT(&htim4, TIM_CHANNEL_4);
 
   HAL_TIM_Base_Start(&htim3);
 
@@ -181,25 +178,13 @@ int main(void)
 	  } //fin switch(status_adc)
 
 
-	  if (status_fase == 2){
+	  if (cuenta_fase == 5){
+		  valor_fase = (float) (acum_fase * 0.04);
 
-		  acum_fase += (ventana_fin - ventana_inicio);
-		  cuenta_fase++;
+		  acum_fase = 0;
+		  cuenta_fase = 0;
+	  } //fin if cuenta_fase
 
-		  if (cuenta_fase == 5){
-
-			  valor_fase = acum_fase / 5;
-
-			  if (flag_faseNegativa != 0){
-				  valor_fase *= -1;
-			  }
-
-			  acum_fase = 0;
-			  cuenta_fase = 0;
-		  } //fin if cuenta_fase
-
-		  status_fase = 0;
-	  } //fin if status_fase
 
 
 	  switch (flag_protecV){
@@ -300,57 +285,19 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc){
 }
 
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
+
 	if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1){ // i.e.: PB6 ascendente
-		//HAL_TIM_ReadCapturedValue(htim, HAL_TIM_ACTIVE_CHANNEL_3);
-		//ic1 = htim->Instance->CCR1;
 
-		//if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_8) == 1)
-		if ((GPIOB->IDR & GPIO_PIN_8) != 0){
-
-			if (!status_fase){
-				status_fase = 1;
-				ventana_inicio = htim->Instance->CCR1;
-			}
-		}else{
-			flag_faseNegativa = 0;
-		} //fin if GPIOB...
-
+		__HAL_TIM_SET_COUNTER (&htim4, 0);
 
 	} //fin if HAL_TIM_ACTIVE_CHANNEL_1
 
-	if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2){ // i.e.: PB6 descendente
+	if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_3){ // i.e.: PB8 descendente
 
-		if (status_fase == 1){
-
-		ventana_fin = htim->Instance->CCR2;
-		status_fase = 2;
-		}
-
-	} //fin if HAL_TIM_ACTIVE_CHANNEL_2
-
-	if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_3){ // i.e.: PB8 ascendente
-
-		if ((GPIOB->IDR & GPIO_PIN_6) != 0){
-
-			if (!status_fase){
-				status_fase = 1;
-				ventana_inicio = htim->Instance->CCR3;
-			}
-		}else{
-			flag_faseNegativa = 1;
-		} //fin if GPIOB...
+		acum_fase = __HAL_TIM_GET_COUNTER (&htim4);
+		cuenta_fase++;
 
 	} //fin HAL_TIM_ACTIVE_CHANNEL_3
-
-	if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_4){ //i.e.: PB8 descendente
-
-		if (status_fase == 1){
-			ventana_fin = htim->Instance->CCR4;
-			status_fase = 2;
-		}
-
-	} //fin HAL_TIM_ACTIVE_CHANNEL_4
-
 
 } //fin HAL_TIM_IC_CaptureCallback()
 
