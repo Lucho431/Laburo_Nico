@@ -54,9 +54,14 @@
 uint32_t muestras[400];
 
 uint32_t acumulaV = 0;
-uint32_t acumulaA = 0;
+uint32_t acumulaI = 0;
+uint32_t acum_RMS_samplesV = 0;
+uint32_t acum_RMS_samplesI = 0;
+uint8_t cuenta_RMS_samplesV = 0;
+uint8_t cuenta_RMS_samplesI = 0;
 uint32_t RMS_samplesV = 0;
-uint32_t RMS_samplesA = 0;
+uint32_t RMS_samplesI = 0;
+
 
 uint8_t status_adc = 0;
 
@@ -65,14 +70,11 @@ uint32_t acum_fase = 0;
 uint8_t cuenta_fase = 0;
 float valor_fase = 0;
 
-//uint32_t ic1, ic2, ic3, ic4;
-uint32_t ventana_inicio = 0;
-uint32_t ventana_fin = 0;
 
 uint8_t flag_tim2 = 0;
 
 uint8_t flag_protecV = 0;
-uint8_t flag_protecA = 0;
+uint8_t flag_protecI = 0;
 
 
 /* USER CODE END PV */
@@ -147,14 +149,26 @@ int main(void)
 		  case 1:
 			  for (uint16_t i = 0; i < 200; i+=2){
 				  acumulaV += muestras[i]*muestras[i];
-				  acumulaA += muestras[i+1]*muestras[i+1];
+				  acumulaI += muestras[i+1]*muestras[i+1];
 			  }
 
-			  RMS_samplesV = (uint32_t) (sqrt( (double) acumulaV) / 10);
-			  RMS_samplesA = (uint32_t) (sqrt( (double) acumulaA) / 10);
+			  acum_RMS_samplesV += (uint32_t) (sqrt( (double) acumulaV) / 10);
+			  acum_RMS_samplesI += (uint32_t) (sqrt( (double) acumulaI) / 10);
+			  cuenta_RMS_samplesV++;
+			  cuenta_RMS_samplesI++;
+
+			  if (cuenta_RMS_samplesV == 10){
+				  RMS_samplesV = acum_RMS_samplesV / 10;
+				  RMS_samplesI = acum_RMS_samplesI / 10;
+
+				  cuenta_RMS_samplesV = 0;
+				  acum_RMS_samplesV = 0;
+				  cuenta_RMS_samplesI = 0;
+				  acum_RMS_samplesI = 0;
+			  }
 
 			  acumulaV = 0;
-			  acumulaA = 0;
+			  acumulaI = 0;
 
 			  status_adc = 0;
 
@@ -162,14 +176,26 @@ int main(void)
 		  case 2:
 			  for (uint16_t i = 200; i < 400; i+=2){
 				  acumulaV += muestras[i]*muestras[i];
-				  acumulaA += muestras[i+1]*muestras[i+1];
+				  acumulaI += muestras[i+1]*muestras[i+1];
 			  }
 
-			  RMS_samplesV = (uint32_t) (sqrt( (double) acumulaV) / 10);
-			  RMS_samplesA = (uint32_t) (sqrt( (double) acumulaA) / 10);
+			  acum_RMS_samplesV += (uint32_t) (sqrt( (double) acumulaV) / 10);
+			  acum_RMS_samplesI += (uint32_t) (sqrt( (double) acumulaI) / 10);
+			  cuenta_RMS_samplesV++;
+			  cuenta_RMS_samplesI++;
+
+			  if (cuenta_RMS_samplesV == 10){
+				  RMS_samplesV = acum_RMS_samplesV / 10;
+				  RMS_samplesI = acum_RMS_samplesI / 10;
+
+				  cuenta_RMS_samplesV = 0;
+				  acum_RMS_samplesV = 0;
+				  cuenta_RMS_samplesI = 0;
+				  acum_RMS_samplesI = 0;
+			  }
 
 			  acumulaV = 0;
-			  acumulaA = 0;
+			  acumulaI = 0;
 
 			  status_adc = 0;
 
@@ -179,7 +205,12 @@ int main(void)
 
 
 	  if (cuenta_fase == 5){
-		  valor_fase = (float) (acum_fase * 0.04);
+
+		  if (acum_fase > 4500){ //mayor que 180 grados.
+			  valor_fase = (float) (acum_fase * 0.04 - 360.0);
+		  }else{
+			  valor_fase = (float) (acum_fase * 0.04);
+		  }
 
 		  acum_fase = 0;
 		  cuenta_fase = 0;
@@ -205,11 +236,11 @@ int main(void)
 		  break;
 	  } //fin switch flag_protecV
 
-	  switch (flag_protecA){
+	  switch (flag_protecI){
 		  case 0:
 			  if (PROTEC_A != 0){
 				  HAL_GPIO_WritePin(HAB_Io_GPIO_Port, HAB_Io_Pin, SIGNAL_OFF);
-				  flag_protecA = 1;
+				  flag_protecI = 1;
 			  }
 		  break;
 		  case 1:
@@ -217,11 +248,11 @@ int main(void)
 
 			  if (HAL_GPIO_ReadPin(Rep_Pote_Io_GPIO_Port, Rep_Pote_Io_Pin) == (GPIO_PinState)SIGNAL_ON){
 				  HAL_GPIO_WritePin(HAB_Io_GPIO_Port, HAB_Io_Pin, SIGNAL_ON);
-				  flag_protecA = 0;
+				  flag_protecI = 0;
 			  }
 		  default:
 		  break;
-	  } //fin switch flag_protecA
+	  } //fin switch flag_protecI
 
     /* USER CODE END WHILE */
 
@@ -294,7 +325,7 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
 
 	if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_3){ // i.e.: PB8 descendente
 
-		acum_fase = __HAL_TIM_GET_COUNTER (&htim4);
+		acum_fase += __HAL_TIM_GET_COUNTER (&htim4);
 		cuenta_fase++;
 
 	} //fin HAL_TIM_ACTIVE_CHANNEL_3
