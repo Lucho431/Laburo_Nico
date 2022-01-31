@@ -76,6 +76,8 @@ uint8_t flag_tim2 = 0;
 uint8_t flag_protecV = 0;
 uint8_t flag_protecI = 0;
 
+char texto[30];
+uint8_t imprimePantalla = 25; //tiempo de refresco de pantalla en 10 * ms.
 
 /* USER CODE END PV */
 
@@ -134,9 +136,18 @@ int main(void)
 
   HAL_ADC_Start_DMA(&hadc1, muestras, sizeof(muestras));
 
-//  HAL_TIM_Base_Start_IT(&htim2); //desborda cada 10 ms.
+  HAL_TIM_Base_Start_IT(&htim2); //desborda cada 10 ms.
 
   LCD_Init();
+
+  LCD_GoToxy(8, 1);
+  sprintf(texto, "OLEC");
+  LCD_Print(texto);
+  LCD_GoToxy(3, 2);
+  sprintf(texto, "CAJA DE CARGA");
+  LCD_Print(texto);
+
+  HAL_Delay(5000);
 
   /* USER CODE END 2 */
 
@@ -253,6 +264,36 @@ int main(void)
 		  default:
 		  break;
 	  } //fin switch flag_protecI
+
+	  if (flag_tim2 != 0){ //desborda cada 10 ms
+
+
+		  if (imprimePantalla != 0){
+
+			  imprimePantalla--;
+
+		  }else{
+
+			  LCD_GoToxy(0, 0);
+			  LCD_Print("Título");
+			  LCD_GoToxy(0, 1);
+			  sprintf(texto, "Vo: %d [V]", RMS_samplesV);
+			  LCD_Print(texto);
+			  LCD_GoToxy(0, 2);
+			  sprintf(texto, "Io: %d [A]", RMS_samplesI);
+			  LCD_Print(texto);
+			  LCD_GoToxy(0, 3);
+			  sprintf(texto, "Phi: %f [°]", valor_fase);
+			  LCD_Print(texto);
+
+			  imprimePantalla = 25;
+
+		  } //fin if imprimePantalla
+
+		  flag_tim2 = 0;
+
+	  } //fin if flag_tim2
+
 
     /* USER CODE END WHILE */
 
