@@ -46,9 +46,11 @@
 #define PROTEC_V ( (P_Temp_Vo_GPIO_Port->IDR & P_Temp_Vo_Pin) | (P_OL_Vo_GPIO_Port->IDR & P_OL_Vo_Pin) )
 #define PROTEC_A ( (P_Temp_Io_GPIO_Port->IDR & P_Temp_Io_Pin) | (P_OL_Io_GPIO_Port->IDR & P_OL_Io_Pin) )
 
+#define RANGO_I ( ((Rango_Io_A_GPIO_Port->IDR) >> 3) & 0b111 )
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+void Valor_Io (void);
 
 /* USER CODE BEGIN PV */
 uint32_t muestras[400];
@@ -62,6 +64,7 @@ uint8_t cuenta_RMS_samplesI = 0;
 uint32_t RMS_samplesV = 0;
 uint32_t RMS_samplesI = 0;
 
+uint8_t rango_Io = 1;
 
 uint8_t status_adc = 0;
 
@@ -199,6 +202,8 @@ int main(void)
 				  RMS_samplesV = acum_RMS_samplesV / 10;
 				  RMS_samplesI = acum_RMS_samplesI / 10;
 
+				  Valor_Io ();
+
 				  cuenta_RMS_samplesV = 0;
 				  acum_RMS_samplesV = 0;
 				  cuenta_RMS_samplesI = 0;
@@ -246,6 +251,8 @@ int main(void)
 		  default:
 		  break;
 	  } //fin switch flag_protecV
+
+
 
 	  switch (flag_protecI){
 		  case 0:
@@ -348,6 +355,40 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+void Valor_Io (void){
+
+	switch (RANGO_I){
+
+		case 1:
+			//convierte a float 0,5A
+		break;
+		case 2:
+			//convierte a float 1A
+		break;
+		case 3:
+			//convierte a float 2A
+		break;
+		case 4:
+			//convierte a float 5A
+		break;
+		case 5:
+			//convierte a float 10A
+		break;
+		case 6:
+			//convierte a float 20A
+		break;
+		case 7:
+			//convierte a float 50A
+		default:
+		break;
+
+	} //fin switch RANG_I
+
+} //fin Valor_Io()
+
+
+
+
 void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc){
 	status_adc = 1;
 }
