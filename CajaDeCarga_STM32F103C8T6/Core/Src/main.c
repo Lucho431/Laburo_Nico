@@ -50,7 +50,7 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-void Valor_Io (void);
+
 
 /* USER CODE BEGIN PV */
 uint32_t muestras[400];
@@ -80,13 +80,16 @@ uint8_t flag_protecV = 0;
 uint8_t flag_protecI = 0;
 
 char texto[30];
-uint8_t imprimePantalla = 25; //tiempo de refresco de pantalla en 10 * ms.
+uint8_t refrescaPantalla = 25; //tiempo de refresco de pantalla en 10 * ms.
 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
+
+void Valor_Io (void);
+void imprimePantalla (void);
 
 /* USER CODE END PFP */
 
@@ -274,28 +277,7 @@ int main(void)
 
 	  if (flag_tim2 != 0){ //desborda cada 10 ms
 
-
-		  if (imprimePantalla != 0){
-
-			  imprimePantalla--;
-
-		  }else{
-
-			  LCD_GoToxy(0, 0);
-			  LCD_Print("Título");
-			  LCD_GoToxy(0, 1);
-			  sprintf(texto, "Vo: %d [V]", RMS_samplesV);
-			  LCD_Print(texto);
-			  LCD_GoToxy(0, 2);
-			  sprintf(texto, "Io: %d [A]", RMS_samplesI);
-			  LCD_Print(texto);
-			  LCD_GoToxy(0, 3);
-			  sprintf(texto, "Phi: %f [°]", valor_fase);
-			  LCD_Print(texto);
-
-			  imprimePantalla = 25;
-
-		  } //fin if imprimePantalla
+		  imprimePantalla();
 
 		  flag_tim2 = 0;
 
@@ -386,8 +368,31 @@ void Valor_Io (void){
 
 } //fin Valor_Io()
 
+void imprimePantalla(void) {
 
+	if (refrescaPantalla != 0) {
 
+		refrescaPantalla--;
+
+	} else {
+
+		LCD_GoToxy(0, 0);
+		LCD_Print("Título");
+		LCD_GoToxy(0, 1);
+		sprintf(texto, "Vo: %d [V]", RMS_samplesV);
+		LCD_Print(texto);
+		LCD_GoToxy(0, 2);
+		sprintf(texto, "Io: %d [A]", RMS_samplesI);
+		LCD_Print(texto);
+		LCD_GoToxy(0, 3);
+		sprintf(texto, "Phi: %f [°]", valor_fase);
+		LCD_Print(texto);
+
+		refrescaPantalla = 25;
+
+	} //fin if refrescaPantalla
+
+} //fin imprimePantalla ()
 
 void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc){
 	status_adc = 1;
