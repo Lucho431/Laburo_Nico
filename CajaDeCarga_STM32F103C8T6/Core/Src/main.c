@@ -55,6 +55,7 @@
 /* USER CODE BEGIN PV */
 uint32_t muestras[400];
 
+//variables de muestreo del ADC
 uint32_t acumulaV = 0;
 uint32_t acumulaI = 0;
 uint32_t acum_RMS_samplesV = 0;
@@ -63,22 +64,31 @@ uint8_t cuenta_RMS_samplesV = 0;
 uint8_t cuenta_RMS_samplesI = 0;
 uint32_t RMS_samplesV = 0;
 uint32_t RMS_samplesI = 0;
-
-uint8_t rango_Io = 1;
-
 uint8_t status_adc = 0;
 
+//variables de selección de rango
+uint8_t rango_Io = 1;
+float Imax; //valor máximo de un rango
+float coefRango_Io; //coeficioente de conversión de codigo ADC al rango de corriente
+float valor_Io;
+float valor_Vo;
+float Vmax = 608.11; //valor máxiom del rango (Vp).
+float coefRango_Vo = 0.297002;
+
+//variables de detección de fase
 uint8_t flag_faseNegativa = 0;
 uint32_t acum_fase = 0;
 uint8_t cuenta_fase = 0;
 float valor_fase = 0;
 
-
+//variables de timers
 uint8_t flag_tim2 = 0;
 
+//variables de protecciones
 uint8_t flag_protecV = 0;
 uint8_t flag_protecI = 0;
 
+//variables de impresión de pantalla
 char texto[30];
 uint8_t refrescaPantalla = 25; //tiempo de refresco de pantalla en 10 * ms.
 
@@ -88,7 +98,7 @@ uint8_t refrescaPantalla = 25; //tiempo de refresco de pantalla en 10 * ms.
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
 
-void Valor_Io (void);
+void valor_mediciones (void);
 void imprimePantalla (void);
 
 /* USER CODE END PFP */
@@ -205,7 +215,7 @@ int main(void)
 				  RMS_samplesV = acum_RMS_samplesV / 10;
 				  RMS_samplesI = acum_RMS_samplesI / 10;
 
-				  Valor_Io ();
+				  valor_mediciones ();
 
 				  cuenta_RMS_samplesV = 0;
 				  acum_RMS_samplesV = 0;
@@ -239,12 +249,16 @@ int main(void)
 
 	  switch (flag_protecV){
 		  case 0:
-			  if (PROTEC_V != 0){
+			  if (HAL_GPIO_ReadPin(P_Temp_Vo_GPIO_Port, P_Temp_Vo_Pin) != 0){
 				  HAL_GPIO_WritePin(HAB_Vo_GPIO_Port, HAB_Vo_Pin, SIGNAL_OFF);
 				  flag_protecV = 1;
+			  }else if (HAL_GPIO_ReadPin(P_OL_Vo_GPIO_Port, P_OL_Vo_Pin) != 0){
+				  HAL_GPIO_WritePin(HAB_Vo_GPIO_Port, HAB_Vo_Pin, SIGNAL_OFF);
+				  flag_protecV = 2;
 			  }
 		  break;
 		  case 1:
+		  case 2:
 			  if (!PROTEC_V) break;
 
 			  if (HAL_GPIO_ReadPin(Rep_Pote_Vo_GPIO_Port, Rep_Pote_Vo_Pin) == (GPIO_PinState)SIGNAL_ON){
@@ -259,12 +273,16 @@ int main(void)
 
 	  switch (flag_protecI){
 		  case 0:
-			  if (PROTEC_A != 0){
+			  if (HAL_GPIO_ReadPin(P_Temp_Io_GPIO_Port, P_Temp_Io_Pin) != 0){
+				  HAL_GPIO_WritePin(HAB_Io_GPIO_Port, HAB_Io_Pin, SIGNAL_OFF);
+				  flag_protecI = 1;
+			  }else if (HAL_GPIO_ReadPin(P_OL_Io_GPIO_Port, P_OL_Io_Pin) != 0){
 				  HAL_GPIO_WritePin(HAB_Io_GPIO_Port, HAB_Io_Pin, SIGNAL_OFF);
 				  flag_protecI = 1;
 			  }
 		  break;
 		  case 1:
+		  case 2:
 			  if (!PROTEC_A) break;
 
 			  if (HAL_GPIO_ReadPin(Rep_Pote_Io_GPIO_Port, Rep_Pote_Io_Pin) == (GPIO_PinState)SIGNAL_ON){
@@ -337,36 +355,53 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-void Valor_Io (void){
+void valor_mediciones (void){
 
 	switch (RANGO_I){
 
 		case 1:
-			//convierte a float 0,5A
+			//convierte a float 500mA
+			coefRango_Io = 0.3272;
+			Imax = 670.00;
 		break;
 		case 2:
 			//convierte a float 1A
+			coefRango_Io = 0.0006545;
+			Imax = 1.34;
 		break;
 		case 3:
 			//convierte a float 2A
+			coefRango_Io = 0.001309;
+			Imax = 2.68;
 		break;
 		case 4:
 			//convierte a float 5A
+			coefRango_Io = 0.003273;
+			Imax = 6.7;
 		break;
 		case 5:
 			//convierte a float 10A
+			coefRango_Io = 0.006546;
+			Imax = 13.4;
 		break;
 		case 6:
 			//convierte a float 20A
+			coefRango_Io = 0.01309;
+			Imax = 26.8;
 		break;
 		case 7:
 			//convierte a float 50A
+			coefRango_Io = 0.032725;
+			Imax = 67.0;
 		default:
 		break;
 
 	} //fin switch RANG_I
 
-} //fin Valor_Io()
+	valor_Io = (float) (RMS_samplesI * coefRango_Io - Imax);
+	valor_Vo = (float) (RMS_samplesV * coefRango_Vo - Vmax);
+
+} //fin valor_mediciones()
 
 void imprimePantalla(void) {
 
@@ -376,16 +411,44 @@ void imprimePantalla(void) {
 
 	} else {
 
+		valor_mediciones();
+
 		LCD_GoToxy(0, 0);
 		LCD_Print("Título");
 		LCD_GoToxy(0, 1);
-		sprintf(texto, "Vo: %d [V]", RMS_samplesV);
+
+		switch (flag_protecV) {
+			case 0:
+				sprintf(texto, "Tension: %3.2f [V]", valor_Vo);
+			break;
+			case 1:
+				sprintf(texto, "Sobretemp. Tension");
+			break;
+			case 2:
+				sprintf(texto, "Tension Maxima");
+			break;
+		} //fin switch flag_protecV
 		LCD_Print(texto);
 		LCD_GoToxy(0, 2);
-		sprintf(texto, "Io: %d [A]", RMS_samplesI);
+
+		switch (flag_protecI) {
+			case 0:
+				if (RANGO_I == 1)
+					sprintf(texto, "Corriente: %5.2f[mA]", valor_Io);
+				else
+					sprintf(texto, "Corriente: %4.2f [A]", valor_Io);
+			break;
+			case 1:
+				sprintf(texto, "Sobretemp. Corriente");
+			break;
+			case 2:
+				sprintf(texto, "Corriente Maxima");
+			break;
+		} //fin switch flag_protecI
+
 		LCD_Print(texto);
 		LCD_GoToxy(0, 3);
-		sprintf(texto, "Phi: %f [°]", valor_fase);
+		sprintf(texto, "Angulo: %4.1f [°]", valor_fase);
 		LCD_Print(texto);
 
 		refrescaPantalla = 25;
