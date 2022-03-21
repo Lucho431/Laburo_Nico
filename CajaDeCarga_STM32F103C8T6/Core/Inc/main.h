@@ -42,6 +42,13 @@ typedef enum{
 	SIGNAL_ON,
 }T_SIGNAL;
 
+typedef enum{
+	P_OK,
+	P_TEMP,
+	P_OL,
+	REPONER_POTE,
+}T_PROTEC;
+
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/

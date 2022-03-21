@@ -66,9 +66,9 @@ void LCD_SendNibble(uint8_t theNibble)
 	else			      HAL_GPIO_WritePin(D7_Port, D7_Pin, 0);//(LCD_PORT->CLR = LCD_D7);
 
 	HAL_GPIO_WritePin(EN_Port, EN_Pin, 1);//LCD_PORT->SET = LCD_EN;
-		HAL_Delay(1);//LCD_usDelay(5);
+	for (uint16_t i = 0; i < 720; i++); //HAL_Delay(1);//LCD_usDelay(5);
 	HAL_GPIO_WritePin(EN_Port, EN_Pin, 0);//LCD_PORT->CLR = LCD_EN;
-	HAL_Delay(1);//LCD_usDelay(5);
+	for (uint16_t i = 0; i < 720; i++); //HAL_Delay(1);//LCD_usDelay(5);
 }
 
 
@@ -79,7 +79,8 @@ void LCD_SendChar(char theChar)
 
 	LCD_SendByte(theChar);
 
-	HAL_Delay(1);//LCD_usDelay(50);
+	for (uint16_t i = 0; i < 7200; i++);
+	//HAL_Delay(1);//LCD_usDelay(50);
 }
 
 
@@ -91,9 +92,9 @@ void LCD_SendInstruction(uint8_t theInstruction)
 	LCD_SendByte(theInstruction);
 
 	if (theInstruction == LCD_DISPLAY_CLEAR)
-		HAL_Delay(2);//LCD_usDelay(2000);
+		for (uint32_t i = 0; i < 288000; i++); //HAL_Delay(2);//LCD_usDelay(2000);
 	else
-		HAL_Delay(1);//LCD_usDelay(50);
+		for (uint16_t i = 0; i < 7200; i++); //HAL_Delay(1);//LCD_usDelay(50);
 }
 
 
