@@ -29,7 +29,7 @@
 /* USER CODE BEGIN Includes */
 #include "math.h"
 #include "lcd_fer.h"
-#include "float.h"
+//#include "float.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -53,17 +53,38 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-uint32_t muestras[400];
+
+uint8_t   Vo_P_temp	=0;
+uint8_t	  Vo_P_OL	=0;
+uint8_t	  Vo_Rep	=0;
+uint8_t	  Vo_Pul	=0;
+
+uint8_t	  Io_P_temp	=0;
+uint8_t	  Io_P_OL	=0;
+uint8_t	  Io_Rep	=0;
+uint8_t	  Io_Pul	=0;
+
+//Prot Vo;
+//Prot Io;
+
+int32_t muestras[400];
+
+//variables TIMERS
+uint8_t flagTIM2 = 0;
 
 //variables de muestreo del ADC
-uint32_t acumulaV = 0;
-uint32_t acumulaI = 0;
-uint32_t acum_RMS_samplesV = 0;
-uint32_t acum_RMS_samplesI = 0;
+int32_t offset_adc = 2048;
+int32_t aux_muestra_v = 0;
+int32_t aux_muestra_i = 0;
+
+int32_t acumulaV = 0;
+int32_t acumulaI = 0;
+int32_t acum_RMS_samplesV = 0;
+int32_t acum_RMS_samplesI = 0;
 uint8_t cuenta_RMS_samplesV = 0;
 uint8_t cuenta_RMS_samplesI = 0;
-uint32_t RMS_samplesV = 0;
-uint32_t RMS_samplesI = 0;
+int32_t RMS_samplesV = 0;
+int32_t RMS_samplesI = 0;
 uint8_t status_adc = 0;
 
 //variables de selección de rango
@@ -73,7 +94,7 @@ int32_t coefRango_Io; //coeficioente de conversión de codigo ADC al rango de co
 int32_t valor_Io;
 int32_t valor_Vo;
 int32_t Vmax = 60811; //608.11 //valor máxiom del rango (Vp).
-int32_t coefRango_Vo = 297002; //0.297002
+int32_t coefRango_Vo = 2969; //0.297002
 
 //variables de detección de fase
 uint8_t flag_faseNegativa = 0;
@@ -87,6 +108,10 @@ uint16_t count_tick = 0;
 //variables de protecciones
 T_PROTEC flag_protecV = P_OK;
 T_PROTEC flag_protecI = P_OK;
+
+uint8_t demoraRelay = 100; //en 10 * ms.
+uint8_t estadoDemoraRelay = 0;
+
 
 //variables de impresión de pantalla
 char texto[30];
@@ -110,6 +135,11 @@ void protecciones (void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+uint8_t estado_Vo=0;
+uint8_t estado_Io=0;
+uint8_t flag_relay=0;
+uint16_t i=0;
+
 /* USER CODE END 0 */
 
 /**
@@ -119,6 +149,7 @@ void protecciones (void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
+
 
   /* USER CODE END 1 */
 
@@ -149,6 +180,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   HAL_TIM_Base_Start(&htim4);  //captura fase
+//  HAL_TIM_Base_Start_IT(&htim2);  //refresco de 10 ms.
   HAL_TIM_IC_Start_IT(&htim4, TIM_CHANNEL_1); //captura fase
   HAL_TIM_IC_Start_IT(&htim4, TIM_CHANNEL_3); //captura fase
 
@@ -157,11 +189,31 @@ int main(void)
   LCD_GoToxy(7, 1);
   sprintf(texto, "OELEC");
   LCD_Print(texto);
-  LCD_GoToxy(3, 2);
-  sprintf(texto, "CAJA DE CARGA");
+  LCD_GoToxy(6, 2);
+  sprintf(texto, "GIM50v5");
   LCD_Print(texto);
 
+  //Led de la placa
+  HAL_GPIO_WritePin(LED_Board_GPIO_Port, LED_Board_Pin, 1);
+
+
+  //Tiempo de arranque para la fuente de 48V, los leds actuan de testigo
+  HAL_GPIO_WritePin(LED_Vo_GPIO_Port,LED_Vo_Pin, 1);
+  HAL_GPIO_WritePin(LED_Io_GPIO_Port,LED_Io_Pin, 1);
+
+
   HAL_Delay(3000);
+
+
+  HAL_GPIO_WritePin(Relay_Fte_GPIO_Port, Relay_Fte_Pin, 1);
+  flag_relay=1;
+
+
+
+  HAL_GPIO_WritePin(LED_Vo_GPIO_Port,LED_Vo_Pin, 0);
+  HAL_GPIO_WritePin(LED_Io_GPIO_Port,LED_Io_Pin, 0);
+
+
 
   HAL_TIM_Base_Start(&htim3); //sincro ADC
 
@@ -177,8 +229,17 @@ int main(void)
 	  switch (status_adc) {
 		  case 1:
 			  for (uint16_t i = 0; i < 200; i+=2){
-				  acumulaV += muestras[i]*muestras[i];
-				  acumulaI += muestras[i+1]*muestras[i+1];
+//				  muestras[i]	-=offset_adc;
+//				  muestras[i+1]	-=offset_adc;
+//
+//				  acumulaV += muestras[i]*muestras[i];
+//				  acumulaI += muestras[i+1]*muestras[i+1];
+
+				  aux_muestra_v =muestras[i] - offset_adc;
+				  aux_muestra_i =muestras[i+1] - offset_adc;
+
+				  acumulaV += aux_muestra_v*aux_muestra_v;
+				  acumulaI += aux_muestra_i*aux_muestra_i;
 			  }
 
 			  acum_RMS_samplesV += (uint32_t) (sqrt( (double) acumulaV) / 10);
@@ -204,8 +265,18 @@ int main(void)
 		  break;
 		  case 2:
 			  for (uint16_t i = 200; i < 400; i+=2){
-				  acumulaV += muestras[i]*muestras[i];
-				  acumulaI += muestras[i+1]*muestras[i+1];
+
+//				  muestras[i]	-=offset_adc;
+//				  muestras[i+1]	-=offset_adc;
+
+				  aux_muestra_v =muestras[i] - offset_adc;
+				  aux_muestra_i =muestras[i+1] - offset_adc;
+
+//				  acumulaV += muestras[i]*muestras[i];
+//				  acumulaI += muestras[i+1]*muestras[i+1];
+
+				  acumulaV += aux_muestra_v*aux_muestra_v;
+				  acumulaI += aux_muestra_i*aux_muestra_i;
 			  }
 
 			  acum_RMS_samplesV += (uint32_t) (sqrt( (double) acumulaV) / 10);
@@ -249,11 +320,15 @@ int main(void)
 		  cuenta_fase = 0;
 	  } //fin if cuenta_fase
 
-	  protecciones ();
+	  //protecciones ();
 
-	  if (count_tick > 10){ //refresca cada 10 ms
+
+
+	  if (count_tick > 20){ //refresca cada 10 ms
 
 		  imprimePantalla();
+
+		  HAL_GPIO_TogglePin(LED_Board_GPIO_Port, LED_Board_Pin);
 
 		  count_tick = 0;
 
@@ -320,15 +395,13 @@ void valor_mediciones (void){
 		default:
 		case 1:
 			//convierte a float 500mA
-			coefRango_Io = 3272; //0.3272;
-			Imax = 67000; //670.00;
-			valor_Io = (RMS_samplesI * coefRango_Io / 100 - Imax);
+			coefRango_Io = 4488;
+			valor_Io = (RMS_samplesI * coefRango_Io / 10000);
 		break;
 		case 2:
 			//convierte a float 1A
-			coefRango_Io = 6545; //0.0006545;
-			Imax = 134; //1.34;
-			valor_Io = (RMS_samplesI * coefRango_Io / 100000 - Imax);
+			coefRango_Io = 897;
+			valor_Io = (RMS_samplesI * coefRango_Io / 10000);
 		break;
 		case 3:
 			//convierte a float 2A
@@ -363,7 +436,7 @@ void valor_mediciones (void){
 
 	} //fin switch RANG_I
 
-	valor_Vo = (RMS_samplesV * coefRango_Vo / 10000 - Vmax);
+	valor_Vo = (RMS_samplesV * coefRango_Vo / 100);
 
 } //fin valor_mediciones()
 
@@ -442,14 +515,16 @@ void imprimePantalla(void) {
 
 void protecciones (void){
 
+	HAL_Delay(100);
+	HAL_GPIO_TogglePin(LED_Board_GPIO_Port, LED_Board_Pin);
+/*
 	switch (flag_protecV) {
 		case P_OK:
 
 			if (HAL_GPIO_ReadPin(P_Temp_Vo_GPIO_Port, P_Temp_Vo_Pin) != 0) {
-				HAL_GPIO_WritePin(HAB_Vo_GPIO_Port, HAB_Vo_Pin, SIGNAL_OFF);
+
 				flag_protecV = P_TEMP;
 			} else if (HAL_GPIO_ReadPin(P_OL_Vo_GPIO_Port, P_OL_Vo_Pin) != 0) {
-				HAL_GPIO_WritePin(HAB_Vo_GPIO_Port, HAB_Vo_Pin, SIGNAL_OFF);
 				flag_protecV = P_OL;
 			}
 
@@ -490,7 +565,6 @@ void protecciones (void){
 			if (HAL_GPIO_ReadPin(Rep_Pote_Vo_GPIO_Port, Rep_Pote_Vo_Pin) == (GPIO_PinState) SIGNAL_ON)
 				break;
 
-			HAL_GPIO_WritePin(HAB_Vo_GPIO_Port, HAB_Vo_Pin, SIGNAL_ON);
 			flag_protecV = P_OK;
 
 		default:
@@ -501,10 +575,8 @@ void protecciones (void){
 		case P_OK:
 
 			if (HAL_GPIO_ReadPin(P_Temp_Io_GPIO_Port, P_Temp_Io_Pin) != 0) {
-				HAL_GPIO_WritePin(HAB_Io_GPIO_Port, HAB_Io_Pin, SIGNAL_OFF);
 				flag_protecI = P_TEMP;
 			} else if (HAL_GPIO_ReadPin(P_OL_Io_GPIO_Port, P_OL_Io_Pin) != 0) {
-				HAL_GPIO_WritePin(HAB_Io_GPIO_Port, HAB_Io_Pin, SIGNAL_OFF);
 				flag_protecI = P_OL;
 			}
 
@@ -545,15 +617,128 @@ void protecciones (void){
 			if (HAL_GPIO_ReadPin(Rep_Pote_Io_GPIO_Port, Rep_Pote_Io_Pin) == (GPIO_PinState) SIGNAL_ON)
 				break;
 
-			HAL_GPIO_WritePin(HAB_Io_GPIO_Port, HAB_Io_Pin, SIGNAL_ON);
 			flag_protecI = P_OK;
 
 		default:
 			break;
 	} //fin switch flag_protecI
 
+*/
+	  Vo_P_temp	=HAL_GPIO_ReadPin(P_Temp_Vo_GPIO_Port, P_Temp_Vo_Pin);
+	  Vo_P_OL	=HAL_GPIO_ReadPin(P_OL_Vo_GPIO_Port, P_OL_Vo_Pin);
+	  Vo_Rep	=HAL_GPIO_ReadPin(Rep_Pote_Vo_GPIO_Port, Rep_Pote_Vo_Pin);
+	  Vo_Pul	=HAL_GPIO_ReadPin(Pul_Hab_Vo_GPIO_Port, Pul_Hab_Vo_Pin);
+
+	  Io_P_temp	=HAL_GPIO_ReadPin(P_Temp_Io_GPIO_Port, P_Temp_Io_Pin);
+	  Io_P_OL	=HAL_GPIO_ReadPin(P_OL_Io_GPIO_Port, P_OL_Io_Pin);
+	  Io_Rep	=HAL_GPIO_ReadPin(Rep_Pote_Io_GPIO_Port, Rep_Pote_Io_Pin);
+	  Io_Pul	=HAL_GPIO_ReadPin(Pul_Hab_Io_GPIO_Port, Pul_Hab_Io_Pin);
+
+	  switch(estado_Vo)
+	  {
+		  case 0: //prendo cuando pulso
+		  {
+			if(Vo_P_temp==0 && Vo_P_OL==0 && Vo_Rep==0 && Vo_Pul==0)
+			{
+				if(flag_relay==0)
+				{
+					HAL_GPIO_WritePin(Relay_Fte_GPIO_Port, Relay_Fte_Pin, 1);
+					HAL_Delay(1000);
+
+
+					flag_relay=1;
+				}
+
+				if(Vo_Rep==0)
+				{
+//				HAL_GPIO_TogglePin(LED_Board_GPIO_Port, LED_Board_Pin);
+				HAL_GPIO_WritePin(Hab_Vo_GPIO_Port, Hab_Vo_Pin, 0);
+				HAL_GPIO_WritePin(LED_Vo_GPIO_Port, LED_Vo_Pin, 1);
+				HAL_Delay(1000);
+				estado_Vo=1;
+				}
+			}
+		  }
+		  break;
+
+		  case 1: //apago cuando pulso o actua protección
+		  {
+			  if(Vo_P_temp==1 || Vo_P_OL==1 || Vo_Pul==0)
+			  {
+				if(Vo_P_OL==1)
+				{
+					HAL_GPIO_WritePin(Relay_Fte_GPIO_Port, Relay_Fte_Pin, 0);
+					flag_relay=0;
+				}
+
+//				HAL_GPIO_TogglePin(LED_Board_GPIO_Port, LED_Board_Pin);
+				HAL_GPIO_WritePin(Hab_Vo_GPIO_Port, Hab_Vo_Pin, 1);
+				HAL_GPIO_WritePin(LED_Vo_GPIO_Port, LED_Vo_Pin, 0);
+				HAL_Delay(1000);
+				estado_Vo=0;
+
+
+			  }
+		  }
+		  break;
+	  } //Fin switch Vo
+
+
+	  switch(estado_Io)
+	  {
+		  case 0: //prendo cuando pulso
+		  {
+			if(Io_P_temp==0 && Io_P_OL==0 && Io_Rep==0 && Io_Pul==0)
+			{
+				if(flag_relay==0)
+				{
+					HAL_GPIO_WritePin(Relay_Fte_GPIO_Port, Relay_Fte_Pin, 1);
+					HAL_Delay(1000);
+					flag_relay=1;
+				}
+
+				if(Io_Rep==0)
+				{
+//				HAL_GPIO_TogglePin(LED_Board_GPIO_Port, LED_Board_Pin);
+				HAL_GPIO_WritePin(Hab_Io_GPIO_Port, Hab_Io_Pin, 0);
+				HAL_GPIO_WritePin(LED_Io_GPIO_Port, LED_Io_Pin, 1);
+				HAL_Delay(1000);
+				estado_Io=1;
+				}
+			}
+		  }
+		  break;
+
+		  case 1: //apago cuando pulso o actua protección
+		  {
+			  if(Io_P_temp==1 || Io_P_OL==1 || Io_Pul==0)
+			  {
+				  if(Io_P_OL==1)
+				  {
+					  HAL_GPIO_WritePin(Relay_Fte_GPIO_Port, Relay_Fte_Pin, 0);
+					  flag_relay=0;
+				  }
+
+//				  HAL_GPIO_TogglePin(LED_Board_GPIO_Port, LED_Board_Pin);
+				  HAL_GPIO_WritePin(Hab_Io_GPIO_Port, Hab_Io_Pin, 1);
+				  HAL_GPIO_WritePin(LED_Io_GPIO_Port, LED_Io_Pin, 0);
+				  HAL_Delay(1000);
+				  estado_Io=0;
+			  }
+		  }
+		  break;
+	  } //Fin switch Io
+
+
 } //fin protecciones ()
 
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
+	if (htim->Instance == TIM2){
+		flagTIM2 = 1;
+		count_tick ++;
+	}
+}
 
 void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc){
 	status_adc = 1;
