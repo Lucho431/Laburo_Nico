@@ -75,13 +75,13 @@ void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PAPin PAPin PAPin PAPin */
-  GPIO_InitStruct.Pin = Rep_Pote_Vo_Pin|Rep_Pote_Io_Pin|P_Temp_Vo_Pin|P_Temp_Io_Pin;
+  GPIO_InitStruct.Pin = P_Temp_Vo_Pin|P_OL_Vo_Pin|Rep_Pote_Vo_Pin|P_Temp_Io_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PBPin PBPin */
-  GPIO_InitStruct.Pin = P_OL_Vo_Pin|P_OL_Io_Pin;
+  GPIO_InitStruct.Pin = P_OL_Io_Pin|Rep_Pote_Io_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);

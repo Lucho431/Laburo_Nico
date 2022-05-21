@@ -95,18 +95,18 @@ void Error_Handler(void);
 #define Pul_hab_Vo_GPIO_Port GPIOC
 #define Pul_hab_Io_Pin GPIO_PIN_15
 #define Pul_hab_Io_GPIO_Port GPIOC
-#define Rep_Pote_Vo_Pin GPIO_PIN_4
-#define Rep_Pote_Vo_GPIO_Port GPIOA
-#define Rep_Pote_Io_Pin GPIO_PIN_5
-#define Rep_Pote_Io_GPIO_Port GPIOA
-#define P_Temp_Vo_Pin GPIO_PIN_6
+#define P_Temp_Vo_Pin GPIO_PIN_4
 #define P_Temp_Vo_GPIO_Port GPIOA
+#define P_OL_Vo_Pin GPIO_PIN_5
+#define P_OL_Vo_GPIO_Port GPIOA
+#define Rep_Pote_Vo_Pin GPIO_PIN_6
+#define Rep_Pote_Vo_GPIO_Port GPIOA
 #define P_Temp_Io_Pin GPIO_PIN_7
 #define P_Temp_Io_GPIO_Port GPIOA
-#define P_OL_Vo_Pin GPIO_PIN_0
-#define P_OL_Vo_GPIO_Port GPIOB
-#define P_OL_Io_Pin GPIO_PIN_1
+#define P_OL_Io_Pin GPIO_PIN_0
 #define P_OL_Io_GPIO_Port GPIOB
+#define Rep_Pote_Io_Pin GPIO_PIN_1
+#define Rep_Pote_Io_GPIO_Port GPIOB
 #define HAB_Vo_Pin GPIO_PIN_10
 #define HAB_Vo_GPIO_Port GPIOB
 #define HAB_Io_Pin GPIO_PIN_11
@@ -137,41 +137,6 @@ void Error_Handler(void);
 #define Rango_Io_C_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
 
-
-#define LED_Board_Pin GPIO_PIN_13
-#define LED_Board_GPIO_Port GPIOC
-#define Pul_Hab_Vo_Pin GPIO_PIN_14
-#define Pul_Hab_Vo_GPIO_Port GPIOC
-#define Pul_Hab_Io_Pin GPIO_PIN_15
-#define Pul_Hab_Io_GPIO_Port GPIOC
-//#define P_Temp_Vo_Pin GPIO_PIN_4
-#define P_Temp_Vo_GPIO_Port GPIOA
-//#define P_OL_Vo_Pin GPIO_PIN_5
-//#define P_OL_Vo_GPIO_Port GPIOA
-//#define Rep_Pote_Vo_Pin GPIO_PIN_6
-#define Rep_Pote_Vo_GPIO_Port GPIOA
-#define P_Temp_Io_Pin GPIO_PIN_7
-#define P_Temp_Io_GPIO_Port GPIOA
-//#define P_OL_Io_Pin GPIO_PIN_0
-#define P_OL_Io_GPIO_Port GPIOB
-//#define Rep_Pote_Io_Pin GPIO_PIN_1
-//#define Rep_Pote_Io_GPIO_Port GPIOB
-#define Hab_Vo_Pin GPIO_PIN_10
-#define Hab_Vo_GPIO_Port GPIOB
-#define Hab_Io_Pin GPIO_PIN_11
-#define Hab_Io_GPIO_Port GPIOB
-#define LED_Vo_Pin GPIO_PIN_12
-#define LED_Vo_GPIO_Port GPIOB
-#define LED_Io_Pin GPIO_PIN_13
-#define LED_Io_GPIO_Port GPIOB
-#define Relay_Fte_Pin GPIO_PIN_14
-#define Relay_Fte_GPIO_Port GPIOB
-#define Rango_Io_A_Pin GPIO_PIN_3
-#define Rango_Io_A_GPIO_Port GPIOB
-#define Rango_Io_B_Pin GPIO_PIN_4
-#define Rango_Io_B_GPIO_Port GPIOB
-#define Rango_Io_C_Pin GPIO_PIN_5
-#define Rango_Io_C_GPIO_Port GPIOB
 
 /* USER CODE END Private defines */
 
