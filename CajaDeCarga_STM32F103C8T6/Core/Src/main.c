@@ -48,6 +48,8 @@
 #define PROTEC_A ( (P_Temp_Io_GPIO_Port->IDR & P_Temp_Io_Pin) | (P_OL_Io_GPIO_Port->IDR & P_OL_Io_Pin) )
 
 #define RANGO_I ( ((Rango_Io_A_GPIO_Port->IDR) >> 3) & 0b111 )
+
+#define PERIODO_BOARDLED 250
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -68,6 +70,23 @@ uint8_t	  Io_Pul	=0;
 //Prot Io;
 
 int32_t muestras[400];
+
+//variables INPUT
+T_INPUT pulsadorVo;
+T_INPUT pulsadorIo;
+T_INPUT P_OL_Vo;
+T_INPUT P_OL_Io;
+static uint8_t read_pulsadorVo;
+static uint8_t read_pulsadorIo;
+static uint8_t read_OL_Vo;
+static uint8_t read_OL_Io;
+
+uint8_t last_pulsadorVo = 0;
+uint8_t last_pulsadorIo = 0;
+uint8_t last_OL_Vo = 0;
+uint8_t last_OL_Io = 0;
+uint8_t lectura_entradas = 100; //anti-rebote en ms.
+uint8_t lectura_proteccion = 10;
 
 //variables TIMERS
 uint8_t flagTIM2 = 0;
@@ -109,16 +128,22 @@ uint16_t count_tick = 0;
 T_PROTEC flag_protecV = P_OK;
 T_PROTEC flag_protecI = P_OK;
 
+uint16_t transitorioFunete = 3000; //en ms.
+
+static T_PROTEC status_proteccionVo;
+static T_PROTEC status_proteccionIo;
+
+
 uint8_t demoraRelay = 100; //en 10 * ms.
 uint8_t estadoDemoraRelay = 0;
 
 
 //variables de impresión de pantalla
 char texto[30];
-uint8_t refrescaPantalla = 25; //tiempo de refresco de pantalla en 10 * ms.
+uint16_t refrescaPantalla = 500; //tiempo de refresco de pantalla en ms.
 
-uint32_t rrr1= 0;
-uint32_t rrr2= 0;
+//variables miscelaneas
+uint16_t periodo_BoardLed = PERIODO_BOARDLED;
 
 /* USER CODE END PV */
 
@@ -129,7 +154,10 @@ void SystemClock_Config(void);
 void valor_mediciones (void);
 void imprimePantalla (void);
 void protecciones (void);
-
+void update_entradas (void);
+void update_proteccion (void);
+void check_entradas (void);
+void check_proteccion (void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -175,7 +203,6 @@ int main(void)
   MX_ADC1_Init();
   MX_TIM3_Init();
   MX_TIM4_Init();
-  MX_TIM2_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 
@@ -217,7 +244,7 @@ int main(void)
 
   HAL_TIM_Base_Start(&htim3); //sincro ADC
 
-  HAL_ADC_Start_DMA(&hadc1, muestras, sizeof(muestras)); //ADC por DMA
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t*) muestras, sizeof(muestras)); //ADC por DMA
 
   /* USER CODE END 2 */
 
@@ -225,6 +252,47 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+/*
+	  if (HAL_GPIO_ReadPin(Pul_Hab_Io_GPIO_Port, Pul_Hab_Io_Pin)){
+		  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 0);
+	  }else{
+		  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 1);
+	  }
+*/
+	  if (count_tick != 0){ //acciones del systickHandler
+
+		  if (refrescaPantalla != 0){
+			  refrescaPantalla--;
+		  }else{
+			  imprimePantalla();
+		  }
+
+		  if (periodo_BoardLed != 0){
+			  periodo_BoardLed--;
+		  }else{
+//			  HAL_GPIO_TogglePin(LED_Board_GPIO_Port, LED_Board_Pin);
+			  periodo_BoardLed = PERIODO_BOARDLED;
+		  }
+
+		  if (lectura_entradas != 0){
+			  lectura_entradas--;
+		  }else{
+			  update_entradas();
+		  }
+
+		  if (lectura_proteccion != 0){
+			  lectura_proteccion--;
+		  }else{
+			  update_proteccion();
+		  }
+
+		  if (transitorioFunete != 0)
+
+		  count_tick = 0;
+	  } //fin if (count_tick != 0)
+
+	  check_entradas();
+	  check_proteccion();
 
 	  switch (status_adc) {
 		  case 1:
@@ -320,19 +388,7 @@ int main(void)
 		  cuenta_fase = 0;
 	  } //fin if cuenta_fase
 
-	  //protecciones ();
-
-
-
-	  if (count_tick > 20){ //refresca cada 10 ms
-
-		  imprimePantalla();
-
-		  HAL_GPIO_TogglePin(LED_Board_GPIO_Port, LED_Board_Pin);
-
-		  count_tick = 0;
-
-	  } //fin if flag_tim2
+	  protecciones ();
 
 
     /* USER CODE END WHILE */
@@ -442,82 +498,287 @@ void valor_mediciones (void){
 
 void imprimePantalla(void) {
 
+	valor_mediciones();
 
-	if (refrescaPantalla != 0) {
+	LCD_GoToxy(5, 0);
+	sprintf(texto, "MEDICIONES");
+	//LCD_Print("Titulo");
+	LCD_Print(texto);
+	LCD_GoToxy(0, 1);
 
-		refrescaPantalla--;
-
-	} else {
-
-		valor_mediciones();
-
-		LCD_GoToxy(5, 0);
-		sprintf(texto, "MEDICIONES");
-		//LCD_Print("Titulo");
-		LCD_Print(texto);
-		LCD_GoToxy(0, 1);
-
-		LCD_Print("                    ");
-		LCD_GoToxy(0, 1);
-		switch (flag_protecV) {
-			case P_OK:
+	LCD_Print("                    ");
+	LCD_GoToxy(0, 1);
+	switch (flag_protecV) {
+		default:
+		break;
+		case P_OK:
 //				sprintf(texto, "Tension: %3.2f [V]", valor_Vo);
-				sprintf(texto, "Tension: %d.%d [V]", valor_Vo / 100, valor_Vo % 100);
-			break;
-			case P_TEMP:
-				sprintf(texto, "Sobretemp. Tension");
-			break;
-			case P_OL:
-				sprintf(texto, "Tension Maxima");
-			break;
-			case REPONER_POTE:
-				sprintf(texto, "Reponer pote. V");
-			break;
-		} //fin switch flag_protecV
-		LCD_Print(texto);
-		LCD_GoToxy(0, 2);
+			sprintf(texto, "Tension: %d.%d [V]", valor_Vo / 100,
+					valor_Vo % 100);
+		break;
+		case P_TEMP:
+			sprintf(texto, "Sobretemp. Tension");
+		break;
+		case P_OL:
+			sprintf(texto, "Tension Maxima");
+		break;
+		case REPONER_POTE:
+			sprintf(texto, "Reponer pote. V");
+		break;
+	} //fin switch flag_protecV
+	LCD_Print(texto);
+	LCD_GoToxy(0, 2);
 
-		LCD_Print("                    ");
-		LCD_GoToxy(0, 2);
-		switch (flag_protecI) {
-			case P_OK:
-				if (RANGO_I == 1)
+	LCD_Print("                    ");
+	LCD_GoToxy(0, 2);
+	switch (flag_protecI) {
+		default:
+		break;
+		case P_OK:
+			if (RANGO_I == 1)
 //					sprintf(texto, "Corriente: %5.2f[mA]", valor_Io);
-					sprintf(texto, "Corriente:%d.%d[mA]", valor_Io / 100, valor_Io % 100);
-				else
+				sprintf(texto, "Corriente:%d.%d[mA]", valor_Io / 100,
+						valor_Io % 100);
+			else
 //					sprintf(texto, "Corriente: %4.2f [A]", valor_Io);
-					sprintf(texto, "Corriente: %d.%d [A]", valor_Io / 100, valor_Io % 100);
-			break;
-			case P_TEMP:
-				sprintf(texto, "Sobretemp. Corriente");
-			break;
-			case P_OL:
-				sprintf(texto, "Corriente Maxima");
-			break;
-			case REPONER_POTE:
-				sprintf(texto, "Reponer pote. I");
-			break;
+				sprintf(texto, "Corriente: %d.%d [A]", valor_Io / 100,
+						valor_Io % 100);
+		break;
+		case P_TEMP:
+			sprintf(texto, "Sobretemp. Corriente");
+		break;
+		case P_OL:
+			sprintf(texto, "Corriente Maxima");
+		break;
+		case REPONER_POTE:
+			sprintf(texto, "Reponer pote. I");
+		break;
 
-		} //fin switch flag_protecI
-		LCD_Print(texto);
-		LCD_GoToxy(0, 3);
+	} //fin switch flag_protecI
+	LCD_Print(texto);
+	LCD_GoToxy(0, 3);
 
-		LCD_Print("                    ");
-		LCD_GoToxy(0, 3);
-		sprintf(texto, "Angulo: %d.%d [deg]", valor_fase / 10, valor_fase % 10);
-		LCD_Print(texto);
+	LCD_Print("                    ");
+	LCD_GoToxy(0, 3);
+	sprintf(texto, "Angulo: %d.%d [deg]", valor_fase / 10, valor_fase % 10);
+	LCD_Print(texto);
 
-		refrescaPantalla = 27;
-
-	} //fin if refrescaPantalla
+	refrescaPantalla = 500;
 
 } //fin imprimePantalla ()
 
+
 void protecciones (void){
 
-	HAL_Delay(100);
-	HAL_GPIO_TogglePin(LED_Board_GPIO_Port, LED_Board_Pin);
-/*
+	//HAL_Delay(100);
+//	HAL_GPIO_TogglePin(LED_Board_GPIO_Port, LED_Board_Pin);
+	uint8_t p_tempVo = HAL_GPIO_ReadPin(P_Temp_Vo_GPIO_Port, P_Temp_Vo_Pin);
+	uint8_t p_tempIo = HAL_GPIO_ReadPin(P_Temp_Io_GPIO_Port, P_Temp_Io_Pin);
+	uint8_t poteVo = HAL_GPIO_ReadPin(Rep_Pote_Vo_GPIO_Port, Rep_Pote_Vo_Pin);
+	uint8_t poteIo = HAL_GPIO_ReadPin(Rep_Pote_Io_GPIO_Port, Rep_Pote_Io_Pin);
+
+	switch (status_proteccionVo) {
+		default:
+		break;
+		case P_OK:
+
+			HAL_GPIO_WritePin(HAB_Vo_GPIO_Port, HAB_Vo_Pin, 0); //prende HAB
+			HAL_GPIO_WritePin(LED_Vo_GPIO_Port, LED_Vo_Pin, 1); //y prende el led
+
+			if (pulsadorVo == FALL) {
+				status_proteccionVo = P_DESHAB;
+				//avisa por pantalla
+				break;
+			}
+
+			if (p_tempVo != 0) {
+				status_proteccionVo = P_DESHAB;
+				//aviso por pantalla
+				break;
+			}
+
+			if (P_OL_Vo == RISE) {
+				status_proteccionVo = P_DESHAB;
+				//aviso por pantalla
+				break;
+			}
+
+		break;
+		case P_DESHAB:
+
+			HAL_GPIO_WritePin(HAB_Vo_GPIO_Port, HAB_Vo_Pin, 1); //apaga HAB
+			HAL_GPIO_WritePin(LED_Vo_GPIO_Port, LED_Vo_Pin, 0); //y apaga el led
+
+			if (pulsadorVo != FALL)
+				break;
+			if (p_tempVo != 0)
+				break;
+			if (poteVo != 0)
+				break;
+			if (P_OL_Vo == HIGH_L) {
+				HAL_GPIO_WritePin(Relay_Fte_GPIO_Port, Relay_Fte_Pin, 0); //apaga fuente
+				break;
+			}
+
+			transitorioFunete = 3000; //en ms.
+			status_proteccionVo = P_FUENTE;
+
+		break;
+		case P_FUENTE:
+
+			HAL_GPIO_WritePin(Relay_Fte_GPIO_Port, Relay_Fte_Pin, 1); //prende fuente
+
+			if (p_tempVo != 0) {
+				status_proteccionVo = P_DESHAB;
+				//aviso por pantalla
+				break;
+			}
+
+			if (P_OL_Vo == HIGH_L) {
+				status_proteccionVo = P_DESHAB;
+				//aviso por pantalla
+				break;
+			}
+
+			if (transitorioFunete != 0) {
+				break;
+			}
+
+			if (!poteVo) {
+				HAL_GPIO_WritePin(HAB_Vo_GPIO_Port, HAB_Vo_Pin, 0); //habilita HAB
+				HAL_GPIO_WritePin(LED_Vo_GPIO_Port, LED_Vo_Pin, 1); //y prende led
+				status_proteccionVo = P_OK;
+				break;
+			}
+
+			status_proteccionVo = P_RESET_FUENTE;
+
+		break;
+		case P_RESET_FUENTE:
+
+			if (p_tempVo != 0) {
+				status_proteccionVo = P_DESHAB;
+				//aviso por pantalla
+				break;
+			}
+
+			if (P_OL_Vo == HIGH_L) {
+				status_proteccionVo = P_DESHAB;
+				//aviso por pantalla
+				break;
+			}
+
+			if (pulsadorVo != FALL)
+				break;
+
+			transitorioFunete = 3000;
+			status_proteccionVo = P_FUENTE;
+		break;
+
+	} //end switch status_proteccionVo
+
+	switch (status_proteccionIo) {
+		default:
+		break;
+		case P_OK:
+
+			HAL_GPIO_WritePin(HAB_Io_GPIO_Port, HAB_Io_Pin, 0); //prende HAB
+			HAL_GPIO_WritePin(LED_Io_GPIO_Port, LED_Io_Pin, 1); //y prende el led
+
+			if (pulsadorIo == FALL) {
+				status_proteccionIo = P_DESHAB;
+				//avisa por pantalla
+				break;
+			}
+
+			if (p_tempIo != 0) {
+				status_proteccionIo = P_DESHAB;
+				//aviso por pantalla
+				break;
+			}
+
+			if (P_OL_Io == RISE) {
+				status_proteccionIo = P_DESHAB;
+				//aviso por pantalla
+				break;
+			}
+
+		break;
+		case P_DESHAB:
+
+			HAL_GPIO_WritePin(HAB_Io_GPIO_Port, HAB_Io_Pin, 1); //apaga HAB
+			HAL_GPIO_WritePin(LED_Io_GPIO_Port, LED_Io_Pin, 0); //y apaga el led
+
+			if (pulsadorIo != FALL)
+				break;
+			if (p_tempIo != 0)
+				break;
+			if (poteIo != 0)
+				break;
+			if (P_OL_Io == HIGH_L) {
+				HAL_GPIO_WritePin(Relay_Fte_GPIO_Port, Relay_Fte_Pin, 0); //apaga fuente
+				break;
+			}
+
+			transitorioFunete = 3000; //en ms.
+			status_proteccionIo = P_FUENTE;
+
+		break;
+		case P_FUENTE:
+
+			HAL_GPIO_WritePin(Relay_Fte_GPIO_Port, Relay_Fte_Pin, 1); //prende fuente
+
+			if (p_tempIo != 0) {
+				status_proteccionIo = P_DESHAB;
+				//aviso por pantalla
+				break;
+			}
+
+			if (P_OL_Io == HIGH_L) {
+				status_proteccionIo = P_DESHAB;
+				//aviso por pantalla
+				break;
+			}
+
+			if (transitorioFunete != 0) {
+				break;
+			}
+
+			if (!poteIo) {
+				HAL_GPIO_WritePin(HAB_Io_GPIO_Port, HAB_Io_Pin, 0); //habilita HAB
+				HAL_GPIO_WritePin(LED_Io_GPIO_Port, LED_Io_Pin, 1); //y prende led
+				status_proteccionIo = P_OK;
+				break;
+			}
+
+			status_proteccionIo = P_RESET_FUENTE;
+
+		break;
+		case P_RESET_FUENTE:
+
+			if (p_tempIo != 0) {
+				status_proteccionIo = P_DESHAB;
+				//aviso por pantalla
+				break;
+			}
+
+			if (P_OL_Io == HIGH_L) {
+				status_proteccionIo = P_DESHAB;
+				//aviso por pantalla
+				break;
+			}
+
+			if (pulsadorIo != FALL)
+				break;
+
+			transitorioFunete = 3000;
+			status_proteccionIo = P_FUENTE;
+		break;
+
+	} //end switch status_proteccionIo
+
+
+	/*
 	switch (flag_protecV) {
 		case P_OK:
 
@@ -624,6 +885,8 @@ void protecciones (void){
 	} //fin switch flag_protecI
 
 */
+
+/*
 	  Vo_P_temp	=HAL_GPIO_ReadPin(P_Temp_Vo_GPIO_Port, P_Temp_Vo_Pin);
 	  Vo_P_OL	=HAL_GPIO_ReadPin(P_OL_Vo_GPIO_Port, P_OL_Vo_Pin);
 	  Vo_Rep	=HAL_GPIO_ReadPin(Rep_Pote_Vo_GPIO_Port, Rep_Pote_Vo_Pin);
@@ -728,10 +991,96 @@ void protecciones (void){
 		  }
 		  break;
 	  } //Fin switch Io
-
+*/
 
 } //fin protecciones ()
 
+void  update_entradas(void){
+
+	read_pulsadorVo = HAL_GPIO_ReadPin(Pul_Hab_Vo_GPIO_Port, Pul_Hab_Vo_Pin);
+	read_pulsadorIo = HAL_GPIO_ReadPin(Pul_Hab_Io_GPIO_Port, Pul_Hab_Io_Pin);
+
+	lectura_entradas = 100;
+
+} //fin update_entradas()
+
+void check_entradas (void){
+
+	if (read_pulsadorVo) {
+		if (last_pulsadorVo) {
+			pulsadorVo = HIGH_L;
+		} else {
+			pulsadorVo = RISE;
+		}
+	} else {
+		if (last_pulsadorVo) {
+			pulsadorVo = FALL;
+		} else {
+			pulsadorVo = LOW_L;
+		}
+	} //end if pulsadorVo
+
+	if (read_pulsadorIo) {
+		if (last_pulsadorVo) {
+			pulsadorIo = HIGH_L;
+		} else {
+			pulsadorIo = RISE;
+		}
+	} else {
+		if (last_pulsadorVo) {
+			pulsadorIo = FALL;
+		} else {
+			pulsadorIo = LOW_L;
+		}
+	} //end if pulsadorIo
+
+	last_pulsadorIo = read_pulsadorIo;
+	last_pulsadorVo = read_pulsadorVo;
+
+} //fin check_entradas()
+
+void  update_proteccion(void){
+
+	read_OL_Vo = HAL_GPIO_ReadPin(P_OL_Vo_GPIO_Port, P_OL_Vo_Pin);
+	read_OL_Io = HAL_GPIO_ReadPin(P_OL_Io_GPIO_Port, P_OL_Io_Pin);
+
+	lectura_proteccion = 10;
+
+} //fin update_entradas()
+
+void check_proteccion (void){
+
+	if (read_OL_Vo) {
+			if (last_OL_Vo) {
+				P_OL_Vo = HIGH_L;
+			} else {
+				P_OL_Vo = RISE;
+			}
+		} else {
+			if (last_OL_Vo) {
+				P_OL_Vo = FALL;
+			} else {
+				P_OL_Vo = LOW_L;
+			}
+		} //end if P_OL_Vo
+
+		if (read_OL_Io) {
+			if (last_OL_Io) {
+				P_OL_Io = HIGH_L;
+			} else {
+				P_OL_Io = RISE;
+			}
+		} else {
+			if (last_OL_Io) {
+				P_OL_Io = FALL;
+			} else {
+				P_OL_Io = LOW_L;
+			}
+		} //end if P_OL_Io
+
+		last_OL_Io = read_OL_Io;
+		last_OL_Vo = read_OL_Vo;
+} //fin check_proteccion ()
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	if (htim->Instance == TIM2){

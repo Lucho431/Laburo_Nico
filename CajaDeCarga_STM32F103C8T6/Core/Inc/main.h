@@ -43,10 +43,21 @@ typedef enum{
 }T_SIGNAL;
 
 typedef enum{
+	LOW_L,
+	HIGH_L,
+	FALL,
+	RISE,
+}T_INPUT;
+
+
+typedef enum{
 	P_OK,
 	P_TEMP,
 	P_OL,
 	REPONER_POTE,
+	P_DESHAB,
+	P_FUENTE,
+	P_RESET_FUENTE,
 }T_PROTEC;
 
 //typedef struct
