@@ -51,6 +51,7 @@ typedef enum{
 
 
 typedef enum{
+	P_APAGADO,
 	P_OK,
 	P_TEMP,
 	P_OL,
